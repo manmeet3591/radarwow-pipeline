@@ -9,7 +9,7 @@ description = "radar-wow stage 10: End-to-end pipeline"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
-dependencies = ["radarwow-core @ git+https://github.com/manmeet3591/radarwow-core", "numpy", "scipy", "xarray"]
+dependencies = ["radarwow-core @ git+https://github.com/manmeet3591/radarwow-core", "radarwow-kdp @ git+https://github.com/manmeet3591/radarwow-kdp", "radarwow-attenuation @ git+https://github.com/manmeet3591/radarwow-attenuation", "radarwow-classification @ git+https://github.com/manmeet3591/radarwow-classification", "radarwow-estimation @ git+https://github.com/manmeet3591/radarwow-estimation", "radarwow-verify @ git+https://github.com/manmeet3591/radarwow-verify", "numpy", "scipy", "xarray", "pandas", "pysteps", "opencv-python-headless", "rasterio", "cfgrib"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

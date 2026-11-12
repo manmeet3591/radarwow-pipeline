@@ -9,6 +9,7 @@ Every algorithm is one class implementing one paper, with the same interface: it
 
 | sub-component | algorithm | source | DOI | status |
 |---|---|---|---|---|
+| hourly totals from raw NEXRAD (chain of verify notebooks 01-05) | `hourly_totals` | QVP ML, VPR, blockage + hybrid scan, adaptive-alpha synthetic rate, advection totals |  | implemented + notebook |
 | config-driven chain | `Pipeline.from_toml` | checks bands and moments before running |  | planned |
 | India radar review | - | Bhat, Vivekanandan & Pradhan 2025, MAUSAM | [doi:10.54302/mausam.v76i1.6497](https://doi.org/10.54302/mausam.v76i1.6497) | to review |
 | India QPE | - | Sharma et al. 2025, Phys. Chem. Earth | [doi:10.1016/j.pce.2025.104182](https://doi.org/10.1016/j.pce.2025.104182) | to review |

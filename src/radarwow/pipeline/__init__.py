@@ -1,7 +1,6 @@
-"""radar-wow stage 10: end-to-end pipeline.
+"""radar-wow stage 10: end-to-end pipeline."""
 
-Planned algorithms (see README): -.
-"""
+from .chain import hourly_totals
 
-PLANNED = []
-__all__: list[str] = []
+PLANNED = ["Pipeline.from_toml"]
+__all__ = ["hourly_totals"]
