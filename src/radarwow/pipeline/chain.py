@@ -37,6 +37,7 @@ def hourly_totals(site: str, start, end, cache_dir: str | None = None, n_tilts: 
     from radarwow.estimation import (ADAPTIVE_MIN_DPHI, Bech2003BeamBlockage, SyntheticRainRate, ZDRSlopeAlpha, ZhangQi2010VPR,
                                      ZRRelation, advection_accumulate, below_melting_layer, copernicus_dem, fulton1998_correction_db,
                                      hybrid_scan, polar_to_cartesian, to_fixed_azimuths, unique_tilts)
+    from radarwow.estimation.vpr import beam_height_km
     from radarwow.kdp import Vulpiani2012KDP
     from radarwow.verify import hrrr_freezing_level, t2m_freezing_level
 
@@ -47,7 +48,7 @@ def hourly_totals(site: str, start, end, cache_dir: str | None = None, n_tilts: 
 
     start, end = pd.Timestamp(start).floor("h"), pd.Timestamp(end).ceil("h")
     cache_dir = cache_dir or os.path.expanduser("~/.cache/radarwow")
-    out_nc = os.path.join(cache_dir, "pipeline", f"{site}_{start:%Y%m%d%H}_{end:%Y%m%d%H}_t{n_tilts}{'b' if blockage else ''}_{rate}.nc")
+    out_nc = os.path.join(cache_dir, "pipeline", f"{site}_{start:%Y%m%d%H}_{end:%Y%m%d%H}_t{n_tilts}{'b' if blockage else ''}_{rate}_v2.nc")
     if os.path.exists(out_nc):
         return xr.open_dataset(out_nc).load()
 
@@ -59,7 +60,7 @@ def hourly_totals(site: str, start, end, cache_dir: str | None = None, n_tilts: 
     band_cfg = load_band(band)
     tracker, alpha_est, fz_cache = MeltingLayerTracker(), ZDRSlopeAlpha(), {}
     scans, alphas = [], []
-    grid = None
+    grid, height, blk = None, None, None
     for t, f in files:
         try:
             dt = open_volume(f, band=band)
@@ -73,7 +74,7 @@ def hourly_totals(site: str, start, end, cache_dir: str | None = None, n_tilts: 
         use, _ = tracker.update(t, ml, prior_top_km=fz_cache[hr])
         mlb = use.bottom_km if use else fz_cache[hr] - 0.5
         vdt = ZhangQi2010VPR(freezing_level_km=fz_cache[hr])(dt)
-        fields, cbbs = [], []
+        fields, cbbs, heights = [], [], []
         for i, (el, name) in enumerate(unique_tilts(vdt)[:n_tilts]):
             ds = vdt[name].to_dataset()
             ds = ds.isel(range=ds["range"].values <= (max_km + 2) * 1e3)
@@ -101,7 +102,14 @@ def hourly_totals(site: str, start, end, cache_dir: str | None = None, n_tilts: 
             grid = cart if grid is None else grid
             fields.append(cart.values)
             cbbs.append(polar_to_cartesian(to_fixed_azimuths(r.copy(data=cbb)), el, max_km=max_km, res_km=res_km).values)
-        field, _ = hybrid_scan(list(zip(fields, cbbs)))
+            if height is None:
+                hb = np.broadcast_to(beam_height_km(ds["range"].values, el), r.shape)
+                heights.append(polar_to_cartesian(to_fixed_azimuths(r.copy(data=hb)), el, max_km=max_km, res_km=res_km).values)
+        field, idx = hybrid_scan(list(zip(fields, cbbs)))
+        if height is None:  # beam height and blockage of the tilt the hybrid scan uses (from the first volume)
+            pick = lambda arrs: np.choose(np.clip(idx, 0, None), arrs, mode="clip")  # noqa: E731
+            height = np.where(idx >= 0, pick(heights), np.nan)
+            blk = np.where(idx >= 0, pick(cbbs), np.nan)
         scans.append((t, grid.copy(data=field.astype("float32"))))
     hours = pd.date_range(start, end, freq="h")[:-1]
     rain = []
@@ -111,7 +119,9 @@ def hourly_totals(site: str, start, end, cache_dir: str | None = None, n_tilts: 
     xx, yy = np.meshgrid(grid["x"].values, grid["y"].values)
     rain_ds = xr.Dataset(
         {"RAIN": (("time", "y", "x"), np.array(rain, dtype="float32"), {"units": "mm", "long_name": "rain in the hour starting at time"}),
-         "ALPHA": (("volume_time",), np.array([a for _, a in alphas], dtype="float32"))},
+         "ALPHA": (("volume_time",), np.array([a for _, a in alphas], dtype="float32")),
+         "HEIGHT": (("y", "x"), height.astype("float32"), {"units": "km", "long_name": "beam-centre height above the radar of the tilt used"}),
+         "BLOCKAGE": (("y", "x"), blk.astype("float32"), {"long_name": "cumulative beam blockage fraction of the tilt used"})},
         coords={"time": hours, "y": grid["y"].values, "x": grid["x"].values, "volume_time": [t for t, _ in alphas],
                 "lat": (("y", "x"), lat0 + yy / 111.2), "lon": (("y", "x"), lon0 + xx / (111.2 * np.cos(np.deg2rad(lat0))))},
         attrs={"site": site, "source": source, "band": band, "rate": rate, "radar_lat": lat0, "radar_lon": lon0, "radar_alt_m": alt, "n_tilts": n_tilts, "blockage": int(blockage),
