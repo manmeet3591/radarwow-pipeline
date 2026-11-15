@@ -1,0 +1,30 @@
+# Four FMI C-band radars, 30 Aug 2023: mosaic, FMI gauges, kriging with external drift
+[run]
+name = "finland_20230830"
+start = "2023-08-30 12:00"
+end = "2023-08-30 16:00"
+
+[[radar]]
+site = "fianj"
+source = "fmi"
+
+[[radar]]
+site = "fivih"
+source = "fmi"
+
+[[radar]]
+site = "fikes"
+source = "fmi"
+
+[[radar]]
+site = "fipet"
+source = "fmi"
+
+[mosaic]
+mode = "max"
+
+[gauges]
+source = "fmi"
+
+[merge]
+method = "KED"

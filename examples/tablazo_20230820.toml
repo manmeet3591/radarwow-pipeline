@@ -1,0 +1,14 @@
+# Tablazo (Colombia), IRIS one sweep per file, IDEAM gauges (local time: UTC-5)
+[run]
+name = "tablazo_20230820"
+start = "2023-08-20 00:00"
+end = "2023-08-20 12:00"
+
+[[radar]]
+site = "Tablazo"
+source = "ideam"
+
+[gauges]
+source = "ideam"
+utc_offset_h = 5
+qc = "basic"
